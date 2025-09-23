@@ -55,7 +55,7 @@ export default function Modal({ open, handleClose }: ModalProps) {
                         >
                             <Box sx={{ flex: 1 }}>
                                 <img
-                                    src="/static/images/everyone-poops.jpg"
+                                    src={`${import.meta.env.BASE_URL}static/images/everyone-poops.jpg`}
                                     alt="everyone poops"
                                     style={{ border: '1px solid #ccc', borderRadius: 4, boxShadow: '24' }}
                                 />

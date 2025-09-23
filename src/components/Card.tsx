@@ -12,7 +12,7 @@ export default function Card({ handleModalOpen }: CardProps) {
                 <CardMedia
                     component="img"
                     height="240"
-                    image="/static/images/everyone-poops.jpg"
+                    image={`${import.meta.env.BASE_URL}static/images/everyone-poops.jpg`}
                     alt="everyone poops"
                 />
             </CardActionArea>

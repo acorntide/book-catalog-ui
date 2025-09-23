@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/appbar.tsx","./src/components/card.tsx","./src/components/drawer.tsx","./src/components/grid.tsx","./src/components/modal.tsx","./src/themes/colormodeswitcher.tsx","./src/themes/defaulttheme.ts"],"version":"5.9.2"}

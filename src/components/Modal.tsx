@@ -1,85 +1,186 @@
-import { Backdrop, Box, Button, Fade, Modal as MuiModal, Stack, TextField, Typography } from '@mui/material';
+/**
+ * @file Modal Router
+ * Chooses content based on app state and renders it inside ModalShell
+ */
 
-const style = {
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  transform: 'translate(-50%, -50%)',
-  width: 800,
-  bgcolor: 'background.paper',
-  borderRadius: 3,
-  boxShadow: 24,
-  p: 4,
-};
 
-interface ModalProps {
+import { Button, Stack, Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions } from '@mui/material';
+import { useAppState } from '../context/appState';
+import type { Book } from '../types/book';
+import ModalShell from './modal/ModalShell';
+import DetailView from './modal/DetailView';
+import AddBookForm from './modal/AddBookForm';
+import EditBookForm, { type EditBookFormRef } from './modal/EditBookForm';
+import * as React from 'react';
+
+type ModalProps = {
   open: boolean;
   handleClose: () => void;
-}
+};
 
 export default function Modal({ open, handleClose }: ModalProps) {
-    return (
-        <div>
-            <MuiModal
-                open={open}
-                onClose={handleClose}
-                closeAfterTransition
-                slots={{
-                    backdrop: Backdrop
-                }}
-                slotProps={{
-                    backdrop: {
-                        timeout: 500,
-                    },
-                }}
-                aria-labelledby="modal-modal-title"
-                aria-describedby="modal-modal-description"
-            >
-                <Fade in={open}>
-                    <Box sx={style}>
-                        <Typography id="modal-modal-title" variant="h6" component="h2">
-                            Modal Title
-                        </Typography>
-                        <Typography id="modal-modal-description" sx={{ mt: 2, mb: 2 }}>
-                            Duis mollis, est non commodo luctus, nisi erat porttitor ligula.
-                        </Typography>
+  const { state, dispatch, saveBook, addBook, deleteBook } = useAppState();
+  const { selectedBook, editingBook, fetchedBookData } = state;
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  
+  // Refs for form submission
+  const editFormRef = React.useRef<EditBookFormRef>(null);
+  const addFormRef = React.useRef<EditBookFormRef>(null);
 
-                        <Stack
-                            direction="row"
-                            spacing={2}
-                            alignItems={"flex-start"}
-                            justifyContent="space-between"
-                            sx={{
-                                mb: 4
-                            }}
-                        >
-                            <Box sx={{ flex: 1 }}>
-                                <img
-                                    src={`${import.meta.env.BASE_URL}static/images/everyone-poops.jpg`}
-                                    alt="everyone poops"
-                                    style={{ border: '1px solid #ccc', borderRadius: 4, boxShadow: '24' }}
-                                />
-                            </Box>
+  // Simple mode machine - now handles edit-for-add mode
+  const mode: 'detail' | 'edit' | 'edit-for-add' | 'add' =
+    editingBook ? 'edit' : 
+    fetchedBookData ? (selectedBook ? 'detail' : 'edit-for-add') : 
+    selectedBook ? 'detail' : 
+    'add';
 
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, width: '100%' }}>
-                                <TextField label="ISBN" fullWidth />
-                                <TextField label="Title" fullWidth />
-                                <TextField label="Author" fullWidth />
-                                <TextField label="Description" fullWidth multiline rows={4} />
-                            </Box>
-                        </Stack>
+  // Determine which book to show in detail view
+  const bookToDisplay = selectedBook || fetchedBookData;
 
-                        <Stack direction="row" spacing={2} justifyContent="flex-end">
-                            <Button variant="text" color="secondary" sx={{ mt: 3 }} onClick={handleClose}>
-                                Cancel
-                            </Button>
-                            <Button variant="contained" color="primary" sx={{ mt: 3 }} onClick={handleClose}>
-                                Save
-                            </Button>
-                        </Stack>
-                    </Box>
-                </Fade>
-            </MuiModal>
-        </div>
+  const handleEditSubmit = async (formData: Partial<Book>) => {
+    if (editingBook) {
+      await saveBook({ ...formData, id: editingBook.id });
+    }
+  };
+
+  const handleAddSubmit = async (formData: Partial<Book>) => {
+    await addBook(formData);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (bookToDisplay?.id) {
+      await deleteBook(bookToDisplay.id);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  // Custom close handler that preserves state during edit mode
+  const handleModalClose = () => {
+    if (mode === 'edit' || mode === 'edit-for-add') {
+      // Don't close modal during edit, just cancel editing
+      return;
+    }
+    handleClose();
+  };
+
+  const headerActions =
+    mode === 'detail' ? (
+      <Stack direction="row" spacing={1}>
+        <Button
+          variant="outlined"
+          onClick={() => bookToDisplay && dispatch({ type: 'SET_EDITING_BOOK', payload: bookToDisplay })}
+        >
+          Edit
+        </Button>
+        <Button
+          variant="outlined"
+          color="error"
+          onClick={() => setShowDeleteConfirm(true)}
+        >
+          Delete
+        </Button>
+        <Button variant="text" color="secondary" onClick={handleClose}>
+          Close
+        </Button>
+      </Stack>
+    ) : mode === 'edit' ? (
+      <Stack direction="row" spacing={1}>
+        <Button
+          variant="contained"
+          disabled={state.isLoading}
+          onClick={() => editFormRef.current?.submit()}
+        >
+          {state.isLoading ? 'Saving...' : 'Submit'}
+        </Button>
+        <Button 
+          variant="text" 
+          color="secondary" 
+          onClick={() => dispatch({ type: 'SET_EDITING_BOOK', payload: null })}
+          disabled={state.isLoading}
+        >
+          Cancel
+        </Button>
+      </Stack>
+    ) : mode === 'edit-for-add' ? (
+      <Stack direction="row" spacing={1}>
+        <Button
+          variant="contained"
+          disabled={state.isLoading}
+          onClick={() => addFormRef.current?.submit()}
+        >
+          {state.isLoading ? 'Adding...' : 'Add Book'}
+        </Button>
+        <Button 
+          variant="text" 
+          color="secondary" 
+          onClick={() => {
+            dispatch({ type: 'SET_FETCHED_BOOK_DATA', payload: null });
+          }}
+          disabled={state.isLoading}
+        >
+          Cancel
+        </Button>
+      </Stack>
+    ) : (
+      <Stack direction="row" spacing={1}>
+        <Button variant="text" color="secondary" onClick={handleClose}>
+          Close
+        </Button>
+      </Stack>
     );
+
+  return (
+    <>
+      <ModalShell
+        open={open}
+        onClose={handleModalClose}
+        title={mode === 'detail' ? bookToDisplay?.title || 'Book' : 
+               mode === 'edit' ? 'Edit Book' : 
+               mode === 'edit-for-add' ? 'Add Book' : 
+               'Add Book'}
+        headerActions={headerActions}
+      >
+        {mode === 'detail' && bookToDisplay ? (
+          <DetailView book={bookToDisplay} />
+        ) : mode === 'edit' && editingBook ? (
+          <EditBookForm 
+            ref={editFormRef}
+            key={`edit-${editingBook.id}`}
+            book={editingBook} 
+            onSubmit={handleEditSubmit}
+            isLoading={state.isLoading}
+          />
+        ) : mode === 'edit-for-add' && fetchedBookData ? (
+          <EditBookForm 
+            ref={addFormRef}
+            key={`add-${fetchedBookData.isbn}`}
+            book={fetchedBookData} 
+            onSubmit={handleAddSubmit}
+            isLoading={state.isLoading}
+          />
+        ) : (
+          <AddBookForm />
+        )}
+      </ModalShell>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+      >
+        <DialogTitle>Delete Book</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete "{bookToDisplay?.title}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowDeleteConfirm(false)}>Cancel</Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
+  );
 }

@@ -4,13 +4,60 @@
     <meta charset="utf-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="initial-scale=1, width=device-width" />
+    <meta name="referrer" content="no-referrer" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
       href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap"
     />
-    <title>Aaron's book Catalog</title>
+    <title>Book Catalog</title>
+    <script>
+      // Suppress specific CORS-related console errors for external images
+      // while preserving other important error messages
+      const originalConsoleError = console.error;
+      console.error = function(...args) {
+        const message = args.join(' ');
+        
+        // Only suppress specific CORS errors for known external image domains
+        const isCorsError = message.includes('Cross-Origin Request Blocked') || 
+                           message.includes('CORS policy') ||
+                           message.includes('Access to fetch') ||
+                           message.includes('has been blocked by CORS');
+        
+        const isExternalImageDomain = message.includes('books.google.com') || 
+                                     message.includes('amazon.com') || 
+                                     message.includes('goodreads.com') ||
+                                     message.includes('googleapis.com');
+        
+        // Only suppress if both conditions are met
+        if (isCorsError && isExternalImageDomain) {
+          return; // Don't log these specific CORS errors
+        }
+        
+        // Log all other errors normally
+        originalConsoleError.apply(console, args);
+      };
+      
+      (function() {
+        try {
+          var stored = null;
+          try { stored = localStorage.getItem('mui-mode'); } catch (e) { stored = null; }
+          var mql = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          var mode = stored || (mql ? 'dark' : 'light');
+          // Using the 'data' selector: MUI emits [data-light] / [data-dark] attributes
+          if (mode === 'dark') {
+            document.documentElement.setAttribute('data-dark', '');
+            document.documentElement.removeAttribute('data-light');
+          } else {
+            document.documentElement.setAttribute('data-light', '');
+            document.documentElement.removeAttribute('data-dark');
+          }
+        } catch (e) {
+          // ignore
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

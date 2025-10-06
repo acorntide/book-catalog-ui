@@ -1,36 +1,38 @@
 import * as React from 'react';
-import { useMediaQuery, IconButton, SxProps, Tooltip } from '@mui/material';
-import { useColorScheme } from '@mui/material/styles';
+import { IconButton, Tooltip, useMediaQuery } from '@mui/material';
 import { DarkMode, LightMode } from '@mui/icons-material';
+import { useColorScheme } from '@mui/material/styles';
 
-export default function ColorModeSwitcher({ sx }: { sx?: SxProps }) {
-    const prefersDarkMode = useMediaQuery('(prefers-color-scheme: dark)');
-    const preferredMode = prefersDarkMode ? 'dark' : 'light';
+export default function ColorModeSwitcher(props: React.ComponentProps<typeof IconButton>) {
+  const { mode, setMode } = useColorScheme(); // 'light' | 'dark' | 'system'
+  const prefersDark = useMediaQuery('(prefers-color-scheme: dark)');
+  const resolved = mode === 'system' ? (prefersDark ? 'dark' : 'light') : mode;
+  const next = resolved === 'dark' ? 'light' : 'dark';
 
-    const { mode, setMode } = useColorScheme();
-    const paletteMode = !mode || mode === 'system' ? preferredMode : mode;
+  // no side-effects required
 
-    const toggleColorMode = React.useCallback(() => {
-        setMode(paletteMode === 'light' ? 'dark' : 'light');
-    }, [paletteMode, setMode]);
+  return (
+    <Tooltip title={`Switch to ${next} mode`} enterDelay={600}>
+      <IconButton
+        onClick={() => {
+          try {
+            setMode(next);
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.error('setMode error', e);
+          }
 
-    return (
-        <Tooltip
-            title={`${paletteMode === 'dark' ? 'Light' : 'Dark'} mode`}
-            enterDelay={1000}
-        >
-            <IconButton
-                size="small"
-                aria-label={`Switch to ${paletteMode === 'dark' ? 'light' : 'dark'} mode`}
-                onClick={toggleColorMode}
-                sx={sx}
-            >
-                {paletteMode === 'dark' ? (
-                    <LightMode sx={{ color: 'white' }} />
-                ) : (
-                    <DarkMode sx={{ color: 'white' }} />
-                )}
-            </IconButton>
-        </Tooltip>
-    );
+          try {
+            localStorage.setItem('mui-mode', next);
+          } catch (e) {
+            /* ignore storage errors (e.g., private mode) */
+          }
+        }}
+        aria-label={`toggle color mode to ${next}`}
+        {...props}
+      >
+        {resolved === 'dark' ? <LightMode /> : <DarkMode />}
+      </IconButton>
+    </Tooltip>
+  );
 }

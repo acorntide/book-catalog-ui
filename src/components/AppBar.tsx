@@ -1,16 +1,26 @@
+/**
+ * @file AppBar Component
+ * Displays the header with logo, title and search bar
+ */
+
 import * as React from 'react';
-import { AppBar as MuiAppBar, Box, Toolbar, IconButton, Typography, InputBase } from '@mui/material';
-import { LocalLibrary, Menu, Search as SearchIcon } from '@mui/icons-material';
+import { AppBar as MuiAppBar, Box, Toolbar, Typography, InputBase, Button } from '@mui/material';
+import { Search as SearchIcon, LibraryBooks } from '@mui/icons-material';
 import { styled, alpha } from '@mui/material/styles';
-import Drawer from "./Drawer.tsx";
 import ColorModeSwitcher from '../themes/ColorModeSwitcher.tsx';
+import { sx } from '../themes/themePrimitives.ts';
+import { useAppState } from '../context/appState.tsx';
 
 const Search = styled('div')(({ theme }) => ({
     position: 'relative',
     borderRadius: theme.shape.borderRadius,
-    backgroundColor: alpha(theme.palette.common.white, 0.15),
+    backgroundColor: theme.palette.mode === 'light' 
+        ? alpha(theme.palette.common.black, 0.08)  // darker tint for light mode
+        : alpha(theme.palette.common.white, 0.15),
     '&:hover': {
-        backgroundColor: alpha(theme.palette.common.white, 0.25),
+        backgroundColor: theme.palette.mode === 'light'
+            ? alpha(theme.palette.common.black, 0.12)
+            : alpha(theme.palette.common.white, 0.25),
     },
     marginLeft: 0,
     width: '100%',
@@ -39,60 +49,113 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
         paddingLeft: `calc(1em + ${theme.spacing(4)})`,
         transition: theme.transitions.create('width'),
         [theme.breakpoints.up('sm')]: {
-            width: '12ch',
+            width: '16ch',  // increased from 12ch
             '&:focus': {
-                width: '20ch',
+                width: '24ch',  // increased from 20ch
             },
         },
     },
 }));
 
-export default function AppBar() {
-    const [drawerOpen, setDrawerOpen] = React.useState(false);
+interface AppBarProps {
+    onAddBook: () => void;
+    isRailExpanded?: boolean;
+}
 
-    const handleDrawerOpen = () => setDrawerOpen(true);
-    const handleDrawerClose = () => setDrawerOpen(false);
+export default function AppBar({ onAddBook, isRailExpanded = false }: AppBarProps) {
+    const { dispatch } = useAppState();
+    const [localSearchTerm, setLocalSearchTerm] = React.useState('');
+    const [isScrolled, setIsScrolled] = React.useState(false);
+
+    // Scroll detection effect
+    React.useEffect(() => {
+        const handleScroll = () => {
+            const scrollTop = window.scrollY || document.documentElement.scrollTop;
+            const shouldBeScrolled = scrollTop > 20;
+            if (shouldBeScrolled !== isScrolled) {
+                setIsScrolled(shouldBeScrolled);
+            }
+        };
+
+        // Add scroll listener
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        
+        // Check initial scroll position
+        handleScroll();
+        
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, [isScrolled]);
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value;
+        setLocalSearchTerm(value);
+        
+        // Only dispatch search when 4+ characters or empty (to clear search)
+        if (value.length >= 4 || value.length === 0) {
+            dispatch({ type: 'SET_SEARCH_TERM', payload: value });
+        }
+    };
 
     return (
-        <Box sx={{ flexGrow: 1 }}>
-            <MuiAppBar position="static">
+        <Box sx={sx.headerWrap(isRailExpanded)}>
+            <MuiAppBar
+                position='static'
+                elevation={0}
+                color='inherit'
+                sx={isScrolled ? sx.appBarScrolled : sx.appBarSeamless}
+            >
                 <Toolbar>
-                    <IconButton
-                        size="large"
-                        edge="start"
-                        color="inherit"
-                        aria-label="open drawer"
-                        onClick={handleDrawerOpen}
+                    <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
+                        <LibraryBooks 
+                            sx={{ 
+                                mr: 1, 
+                                fontSize: '1.8rem',
+                                color: 'primary.main'
+                            }} 
+                        />
+                        <Typography
+                            variant='h5'
+                            component='h1'
+                            sx={{ 
+                                fontFamily: '"Roboto", sans-serif',
+                                fontWeight: 700,
+                                letterSpacing: '2px',
+                                textTransform: 'uppercase',
+                                color: 'primary.main',
+                                textShadow: (theme) => theme.palette.mode === 'light' 
+                                    ? '0 1px 2px rgba(0,0,0,0.1)'
+                                    : '0 1px 2px rgba(255,255,255,0.1)',
+                                display: {
+                                    xs: 'none',
+                                    sm: 'block'
+                                }
+                            }}
+                        >
+                            BOOKS
+                        </Typography>
+                    </Box>
+                    <Box sx={{ flexGrow: 1 }} />
+                    <Button
+                        variant="contained"
+                        onClick={onAddBook}
                         sx={{ mr: 2 }}
                     >
-                        <Menu />
-                    </IconButton>
-                    
-                    <LocalLibrary sx={{ display: { xs: 'none', sm: 'block' }, mr: 1 }} />
-                    <Typography
-                        variant="h6"
-                        noWrap
-                        component="div"
-                        sx={{ flexGrow: 1, display: { xs: 'none', sm: 'block' } }}
-                    >
-                        BOOKS
-                    </Typography>
-                   
+                        + Add Book
+                    </Button>
                     <Search>
-                        <SearchIconWrapper>
-                            <SearchIcon />
-                        </SearchIconWrapper>
+                        <SearchIconWrapper><SearchIcon /></SearchIconWrapper>
                         <StyledInputBase
-                            placeholder="Search…"
-                            inputProps={{ 'aria-label': 'search' }}
+                            placeholder='Search...'
+                            value={localSearchTerm}
+                            onChange={handleSearchChange}
+                            inputProps={{
+                                'aria-label': 'search'
+                            }}
                         />
                     </Search>
-
                     <ColorModeSwitcher sx={{ ml: 3 }} />
                 </Toolbar>
             </MuiAppBar>
-
-            <Drawer open={drawerOpen} onClose={handleDrawerClose} />
         </Box>
     );
 }
